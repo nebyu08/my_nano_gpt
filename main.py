@@ -51,6 +51,45 @@ class CasualSelfAttention(nn.Module):
         y=self.c_proj(y)
         return y
 
+
+class MLP(nn.Module):
+    def __init__(self,config):
+        self.c_fc=nn.Linear(config.n_embd,4*config.n_embd)
+        self.gelu=nn.GELU(approximate='tanh')
+        self.c_proj=nn.Linear(4*config.n_embd,config.n_embd)
+
+    def forward(self,x):
+        x=self.h1(x)
+        x=self.gelu(x)
+        x=self.h2(x)
+        return x
+
+class Block(nn.Module):
+    """this inside the transformer architecture
+    that is  little bit differnt than the one on the original paper.
+    """
+    def __init__(self,config):
+        self.ln_1=nn.LayerNorm(config.n_embd) 
+        self.attn=CasualSelfAttention(config)
+        self.ln_2=nn.LayerNorm(config.n_embd)
+        self.mlp=MLP(config)
+
+    def forward(self,x):
+        x=x+self.attn(self.layer_n1(x))
+        x=x+self.MLP(self.layer_n2(x))
+
+class GPT:
+    def __init__(self,config):
+        super().__init__()
+        self.config=config
+        self.tranformer=nn.ModuleDict(dict(
+            wte=nn.Embedding(config.vocab_size,config.n_embd),  #this is the weight token embedder
+            wpe=nn.Embedding(config.block_size,config.n_embd),               #wight position embedding
+            h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
+            ln_f=nn.LayerNorm(config.n_embed)   #this is the layer normalization after layers
+        )
+        )
+        self.lm_head=torch.Linear(config.n_embed,config.vocab_size,bias=False)   
     def from_pretrained(model_type):
         """this loads model weights from pretrained hugging face 
 
@@ -110,48 +149,10 @@ class CasualSelfAttention(nn.Module):
                 assert sd_keys[k].shape==sd_keys_hf[k].shape
                 with torch.no_grad:
                     sd_keys[k].copy_(sd_keys_hf[k])
-                    
+
         return model
-
-
-class MLP(nn.Module):
-    def __init__(self,config):
-        self.c_fc=nn.Linear(config.n_embd,4*config.n_embd)
-        self.gelu=nn.GELU(approximate='tanh')
-        self.c_proj=nn.Linear(4*config.n_embd,config.n_embd)
-
-    def forward(self,x):
-        x=self.h1(x)
-        x=self.gelu(x)
-        x=self.h2(x)
-        return x
-
-class Block(nn.Module):
-    """this inside the transformer architecture
-    that is  little bit differnt than the one on the original paper.
-    """
-    def __init__(self,config):
-        self.ln_1=nn.LayerNorm(config.n_embd) 
-        self.attn=CasualSelfAttention(config)
-        self.ln_2=nn.LayerNorm(config.n_embd)
-        self.mlp=MLP(config)
-
-    def forward(self,x):
-        x=x+self.attn(self.layer_n1(x))
-        x=x+self.MLP(self.layer_n2(x))
-
-class GPT:
-    def __init__(self,config):
-        super().__init__()
-        self.config=config
-        self.tranformer=nn.ModuleDict(dict(
-            wte=nn.Embedding(config.vocab_size,config.n_embd),  #this is the weight token embedder
-            wpe=nn.Embedding(config.block_size,config.n_embd),               #wight position embedding
-            h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-            ln_f=nn.LayerNorm(config.n_embed)   #this is the layer normalization after layers
-        )
-        )
-        self.lm_head=torch.Linear(config.n_embed,config.vocab_size,bias=False)   
         
     
 
+#lets load the GPT2  model
+model=GPT.from
