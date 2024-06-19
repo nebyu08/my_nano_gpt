@@ -84,7 +84,7 @@ class GPT(nn.Module):
     def __init__(self,config):
         super().__init__()
         self.config=config
-        self.tranformer=nn.ModuleDict(dict(
+        self.transformer=nn.ModuleDict(dict(
             wte=nn.Embedding(config.vocab_size,config.n_embd),  #this is the weight token embedder
             wpe=nn.Embedding(config.block_size,config.n_embd),               #wight position embedding
             h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
@@ -129,7 +129,7 @@ class GPT(nn.Module):
 
         #lets load the model form hugging face
         from transformers import GPT2LMHeadModel
-        model_hf=GPT2LMHeadModel.from_pretrained(config)
+        model_hf=GPT2LMHeadModel.from_pretrained(model_type)
         sd_hf=model_hf.state_dict()
         sd_keys_hf=sd_hf.keys()
 
@@ -145,14 +145,14 @@ class GPT(nn.Module):
         for k in sd_keys_hf:
             if any(k.endswith(i) for i in transpose):
                 #am not still sure why but we need to check for the inverse
-                assert k.shape[::-1]==k.shape
-                with torch.no_grad:
-                    sd_keys[k].copy_(sd_keys_hf[k].t())
+                assert sd_hf[k].shape[::-1]==sd[k].shape
+                with torch.no_grad():
+                    sd[k].copy_(sd_hf[k].t())
             else:
                 #those that are not conv1D
-                assert sd_keys[k].shape==sd_keys_hf[k].shape
-                with torch.no_grad:
-                    sd_keys[k].copy_(sd_keys_hf[k])
+                assert sd_hf[k].shape==sd[k].shape
+                with torch.no_grad():
+                    sd[k].copy_(sd_hf[k])
 
         return model
         
