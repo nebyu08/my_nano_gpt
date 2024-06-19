@@ -96,7 +96,7 @@ class GPT:
         Args:
             model_type (string): tell us about the type of model to load from hugging face
         """
-        assert model_type in ["model-2","minimal-v","medium versio","large version"]
+        assert model_type in {'gpt2', 'gpt2-medium', 'gpt2-large', 'gpt2-xl'}
         
         #lets get the hyperparameters for the specified model
         model_config= {
@@ -155,4 +155,4 @@ class GPT:
     
 
 #lets load the GPT2  model
-model=GPT.from
+model=GPT.from_pretrained('gpt')
