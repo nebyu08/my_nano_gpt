@@ -5,12 +5,12 @@ import torch.nn.functional as F
 from dataclasses import dataclass
 
 @dataclass
-class GptConfig:
-    block_size=256
-    vocab_size=500
-    n_layer=12
-    n_head=12
-    n_embd=64
+class GPTConfig:
+    block_size:int=1024
+    vocab_size:int =50257
+    n_layer:int =12
+    n_head:int =12
+    n_embd:int =768
 
 
 class CasualSelfAttention(nn.Module):
