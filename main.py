@@ -90,6 +90,8 @@ class GPT:
         )
         )
         self.lm_head=torch.Linear(config.n_embed,config.vocab_size,bias=False)   
+        
+    @classmethod
     def from_pretrained(model_type):
         """this loads model weights from pretrained hugging face 
 
@@ -131,7 +133,7 @@ class GPT:
 
         #the keys we want are
         sd_keys_hf=[k for k in sd_keys_hf if not k.endswith('.attn.bias')]
-        sd_keys_hf=[k for k in sd_keys_hf if not k endswith('.attn.masked_bias')]
+        sd_keys_hf=[k for k in sd_keys_hf if not k.endswith('.attn.masked_bias')]
         
         #lets specify values that are transposed
         transpose=['attn.c_proj.weight','attn.c_attn.weight','mlp.c_fc.weight','mlp.c_proj.weight']
@@ -155,4 +157,5 @@ class GPT:
     
 
 #lets load the GPT2  model
-model=GPT.from_pretrained('gpt')
+model=GPT.from_pretrained('gpt2')
+print("it worked yayayyayay")
