@@ -14,13 +14,13 @@ class GPTConfig:
 
 
 class CasualSelfAttention(nn.Module):
-    def __init_(self,config):
+    def __init__(self,config):
         super().__init__()
-        assert config.n_emb//config.n_head==0,"problem with the way shape of the n_emb and n_head couldn't be divided"
+        assert config.n_embd % config.n_head == 0 ,"problem with the way shape of the n_emb and n_head couldn't be divided"
         self.c_attn=nn.Linear(config.n_embd,3*config.n_embd)
         self.c_proj=nn.Linear(config.n_embd,config.n_embd)
         
-        self.n_emb=config.n_emd
+        self.n_emb=config.n_embd
         self.n_head=config.n_head
 
         #creating a register buffer
@@ -54,6 +54,7 @@ class CasualSelfAttention(nn.Module):
 
 class MLP(nn.Module):
     def __init__(self,config):
+        super().__init__()
         self.c_fc=nn.Linear(config.n_embd,4*config.n_embd)
         self.gelu=nn.GELU(approximate='tanh')
         self.c_proj=nn.Linear(4*config.n_embd,config.n_embd)
@@ -69,6 +70,7 @@ class Block(nn.Module):
     that is  little bit differnt than the one on the original paper.
     """
     def __init__(self,config):
+        super().__init__()
         self.ln_1=nn.LayerNorm(config.n_embd) 
         self.attn=CasualSelfAttention(config)
         self.ln_2=nn.LayerNorm(config.n_embd)
@@ -78,7 +80,7 @@ class Block(nn.Module):
         x=x+self.attn(self.layer_n1(x))
         x=x+self.MLP(self.layer_n2(x))
 
-class GPT:
+class GPT(nn.Module):
     def __init__(self,config):
         super().__init__()
         self.config=config
@@ -86,13 +88,13 @@ class GPT:
             wte=nn.Embedding(config.vocab_size,config.n_embd),  #this is the weight token embedder
             wpe=nn.Embedding(config.block_size,config.n_embd),               #wight position embedding
             h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-            ln_f=nn.LayerNorm(config.n_embed)   #this is the layer normalization after layers
+            ln_f=nn.LayerNorm(config.n_embd)   #this is the layer normalization after layers
         )
         )
-        self.lm_head=torch.Linear(config.n_embed,config.vocab_size,bias=False)   
-        
+        self.lm_head=nn.Linear(config.n_embd,config.vocab_size,bias=False)   
+
     @classmethod
-    def from_pretrained(model_type):
+    def from_pretrained(cls,model_type):
         """this loads model weights from pretrained hugging face 
 
         Args:
@@ -123,7 +125,7 @@ class GPT:
         sd_keys=sd.keys()
     
         #lets remove keys we dont want
-        sd_keys=[k for k in sd_keys if not k.endwith('.attn.bias')]
+        sd_keys=[k for k in sd_keys if not k.endswith('.attn.bias')]
 
         #lets load the model form hugging face
         from transformers import GPT2LMHeadModel
