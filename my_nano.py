@@ -169,7 +169,7 @@ class GPT(nn.Module):
 
         return model
     
-    def forward(self,idx):
+    def forward(self,idx,targets=None):
         #the idx is 2D batch by tokens(max block size)
         B,T=idx.size()
         assert T<=self.config.block_size,f"the given sequence length {T} must decrease cause the block size is {self.config.block_size}"
@@ -191,49 +191,124 @@ class GPT(nn.Module):
         x=self.transformer.ln_f(x)
 
         logits=self.lm_head(x)  #(B,T,vocab_size)
+        loss=None
+        
+        if targets is not None:
+            loss=F.cross_entropy(logits.view(-1,logits.shape[-1]),targets.view(-1))
+        
+        return logits,loss
 
-        return logits
+class DataLoaderLite:
+    def __init__(self,B,T):
+        self.B=B
+        self.T=T
+        with open('C:/Users/nebiy/Documents/Dataset/input.txt') as f:
+            data=f.read()
+        
+        encoder=tiktoken.get_encoding("gpt2")
+        
+        self.tokens=torch.tensor(encoder.encode(data))
+
+        print(f"the number of tokens is {len(self.tokens)}")
+        print(f"we expect the following amount of batches:{len(self.tokens)/self.B*self.T}")
+
+        self.current_batch=0
     
+    def next_batch(self):
+       B,T=self.B,self.T
+       buf=self.tokens[self.current_batch:self.current_batch+B*T+1]
+       x=buf[:-1].view(B,T)
+       y=buf[1:].view(B,T)
 
-#lets load the GPT2  model
-model=GPT.from_pretrained('gpt2')
-model.to("cuda")
+       self.current_batch+=B*T
+
+       if self.current_batch+(B*T+1)>len(self.tokens):
+            self.current_batch=0
+
+       return x,y
+
+        
+
+#model.to("cuda")
 print("it worked yayayyayay")
 
-#lets generate some texts here
-num_return_sequence=5
-generated_next_tokens=30
-
 encoder=tiktoken.get_encoding('gpt2')
-text="hello i am a language model and "
 
-tokens=encoder.encode(text)
-tokens=torch.tensor(tokens,dtype=torch.long).unsqueeze(dim=0).repeat(num_return_sequence,1)   #the shape is (B * T)
+#lets generate some texts here
+# num_return_sequence=5
+# generated_next_tokens=30
 
-#move it to the GPU
-x=tokens.to("cuda")
-#x=tokens   #...this is for CPU
+# encoder=tiktoken.get_encoding('gpt2')
+# text="hello i am a language model and "
+
+# tokens=encoder.encode(text)
+# tokens=torch.tensor(tokens,dtype=torch.long).unsqueeze(dim=0).repeat(num_return_sequence,1)   #the shape is (B * T)
+
+# #move it to the GPU
+# #x=tokens.to("cuda")
+# x=tokens   #...this is for CPU
 
 
-torch.manual_seed(42)
-torch.cuda.manual_seed(42)
+# torch.manual_seed(42)
+# torch.cuda.manual_seed(42)
 
-while x.shape[1]<generated_next_tokens:
-    with torch.no_grad():
-            logits=model(x)
-            logits=logits[:,-1,:]   # (B * 1 * vocab size)
+# model.eval()
+
+# while x.shape[1]<generated_next_tokens:
+#     with torch.no_grad():
+#             logits=model(x)
+#             logits=logits[:,-1,:]   # (B * 1 * vocab size)
             
-            #convert into probability distr
-            probs=F.softmax(logits,dim=-1)
+#             #convert into probability distr
+#             probs=F.softmax(logits,dim=-1)
 
-            logits_values,logits_indices=torch.topk(probs,50,dim=-1)  #extract the top 50 (B* 50)
-            most_prob=torch.multinomial(logits_values,1)  # we got the highest indice values shape is [B *1]
+#             logits_values,logits_indices=torch.topk(probs,50,dim=-1)  #extract the top 50 (B* 50)
+#             most_prob=torch.multinomial(logits_values,1)  # we got the highest indice values shape is [B *1]
 
-            idx=torch.gather(logits_indices,-1,most_prob) #[B*1]
-            x=torch.cat((x,idx),1)
+#             idx=torch.gather(logits_indices,-1,most_prob) #[B*1]
+#             x=torch.cat((x,idx),1)
 
-#print the values here
-for i in range(num_return_sequence):
-    tokens=x[i,:generated_next_tokens].tolist()
-    decode=encoder.decode(tokens)
-    print(f"> {decode}")
+# #print the values here
+# for i in range(num_return_sequence):
+#     tokens=x[i,:generated_next_tokens].tolist()
+#     decode=encoder.decode(tokens)
+#     print(f"> {decode} ")
+
+
+# with open('C:/Users/nebiy/Documents/Dataset/input.txt') as t:
+#     data=t.read()
+
+# #lets make our own inputs and the next charachter output
+# B,T=4,32
+
+# tokens=torch.tensor(encoder.encode(data))
+
+# buff=tokens[:B*T+1]
+
+# x=buff[:-1].view(B,T)
+# y=buff[1:].view(B,T)
+
+# logits,loss=model(x,y)
+
+#print(f"loss: {loss}")
+
+#lets optimize the model
+
+
+#lets load the GPT2  model
+model=GPT(GPTConfig())
+
+train_dataloader=DataLoaderLite(B=4,T=32)
+
+
+optimizer=torch.optim.AdamW(model.parameters())
+
+for i in range(50):
+    optimizer.zero_grad()
+    x,y=train_dataloader.next_batch()
+
+    logits,loss=model(x,y)
+    loss.backward()
+    if i%10==0:
+        print(f"iteration is: {i} and loss is {loss.item()}")
+    optimizer.step() 
