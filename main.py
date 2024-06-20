@@ -36,7 +36,7 @@ class CasualSelfAttention(nn.Module):
         qkv=self.c_attn(x)   
 
         #lets split it into 3 
-        q,k,v=qkv.split(self.n_embd,dim=1)
+        q,k,v=qkv.split(self.n_embd,dim=2)
         #now lets reshape out querys,keys and values for multi-head purposes
         q=q.view(B,T,self.n_head,C//self.n_head).reshape(1,2)
         k=k.view(B,T,self.n_head,C//self.n_head).reshape(1,2)
