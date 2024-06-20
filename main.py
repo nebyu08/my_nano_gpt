@@ -21,7 +21,7 @@ class CasualSelfAttention(nn.Module):
         self.c_attn=nn.Linear(config.n_embd,3*config.n_embd)
         self.c_proj=nn.Linear(config.n_embd,config.n_embd)
         
-        self.n_emb=config.n_embd
+        self.n_embd=config.n_embd
         self.n_head=config.n_head
 
         #creating a register buffer
