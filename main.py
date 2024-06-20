@@ -1,4 +1,5 @@
 import math
+import tiktoken
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -179,13 +180,46 @@ class GPT(nn.Module):
 
         logits=self.lm_head(x)  #(B,T,vocab_size)
         return logits
-
-        
-
-        
-
     
+
 
 #lets load the GPT2  model
 model=GPT.from_pretrained('gpt2')
+model.to("cuda")
 print("it worked yayayyayay")
+
+#lets generate some texts here
+num_return_sequence=5
+generated_next_tokens=30
+
+encoder=tiktoken.get_encoding('gpt2')
+text="hello i am a language model and "
+
+tokens=encoder.encode(text)
+tokens=torch.tensor(tokens,dtype=torch.long).unsqueeze(dim=0).repeat(num_return_sequence,1)   #the shape is (B * T)
+
+#move it to the GPU
+x=tokens.to("cuda")
+
+torch.manual_seed(42)
+torch.cuda.manual_seed(42)
+
+while x.shape[1]<generated_next_tokens:
+    with torch.no_grad():
+            logits=model(x)
+            logits=logits[:,-1:]   # (B * 1 * vocab size)
+            
+            #convert into probability distr
+            probs=F.softmax(logits,dim=-1)
+
+            logits_values,logits_indices=torch.topk(probs,50,dim=-1)  #extract the top 50 (B* 50)
+            most_prob=torch.multinomial(logits_values,1,dim=-1)  # we got the highest indice values shape is [B *1]
+
+            idx=torch.gather(most_prob,-1,most_prob) #[B*1]
+            x=torch.cat((x,idx),1)
+
+#print the values here
+for i in range(num_return_sequence):
+    tokens=x[i:generated_next_tokens].tolist()
+    decode=encoder.decode(tokens)
+    print(decode)
