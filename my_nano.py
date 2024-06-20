@@ -37,19 +37,30 @@ class CasualSelfAttention(nn.Module):
 
         #lets split it into 3 
         q,k,v=qkv.split(self.n_embd,dim=2)
+        
+        # print("hello from attention")
+        # print(q.shape)
+        # print(k.shape)
+        # print(v.shape)
+
         #now lets reshape out querys,keys and values for multi-head purposes
-        q=q.view(B,T,self.n_head,C//self.n_head).reshape(1,2)
-        k=k.view(B,T,self.n_head,C//self.n_head).reshape(1,2)
-        v=v.view(B,T,self.n_head,C//self.n_head).reshape(1,2)
+        q=q.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
+        k=k.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
+        v=v.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
 
         attn=(q @ k.transpose(-1,-2))*(1/(math.sqrt(k.size(-1))))   #the shape is B,nh,T,T
-        attn.masked_fill(self.bias[:,:,T:T]==0,float(-"inf"))
+        attn.masked_fill(self.bias[:,:,T,:T]==0,float("-inf"))
         attn=F.softmax(attn,dim=-1)
+        
+        #print("the attn shape is :",attn.shape)
+        #print("the value shape is:",v.shape)
+        
         y=attn@v   #B,nh,T,T * B,nh,T,hs  ==> B,nh,T,hs
-        y.transpose(1,2).contiguous().view(B,T,C)
-
+        y=y.transpose(1,2).contiguous().view(B,T,C)
+        #print(f"prior y shape is {y.shape}")
         #the output projection becomes
         y=self.c_proj(y)
+        #print(f"output of a attention is, {y.shape}")
         return y
 
 
@@ -61,9 +72,9 @@ class MLP(nn.Module):
         self.c_proj=nn.Linear(4*config.n_embd,config.n_embd)
 
     def forward(self,x):
-        x=self.h1(x)
+        x=self.c_fc(x)
         x=self.gelu(x)
-        x=self.h2(x)
+        x=self.c_proj(x)
         return x
 
 class Block(nn.Module):
@@ -79,7 +90,8 @@ class Block(nn.Module):
 
     def forward(self,x):
         x=x+self.attn(self.ln_1(x))
-        x=x+self.MLP(self.ln_2(x))
+        x=x+self.mlp(self.ln_2(x))
+        return x
 
 class GPT(nn.Module):
     def __init__(self,config):
@@ -179,9 +191,9 @@ class GPT(nn.Module):
         x=self.transformer.ln_f(x)
 
         logits=self.lm_head(x)  #(B,T,vocab_size)
+
         return logits
     
-
 
 #lets load the GPT2  model
 model=GPT.from_pretrained('gpt2')
@@ -200,6 +212,8 @@ tokens=torch.tensor(tokens,dtype=torch.long).unsqueeze(dim=0).repeat(num_return_
 
 #move it to the GPU
 x=tokens.to("cuda")
+#x=tokens   #...this is for CPU
+
 
 torch.manual_seed(42)
 torch.cuda.manual_seed(42)
@@ -207,19 +221,19 @@ torch.cuda.manual_seed(42)
 while x.shape[1]<generated_next_tokens:
     with torch.no_grad():
             logits=model(x)
-            logits=logits[:,-1:]   # (B * 1 * vocab size)
+            logits=logits[:,-1,:]   # (B * 1 * vocab size)
             
             #convert into probability distr
             probs=F.softmax(logits,dim=-1)
 
             logits_values,logits_indices=torch.topk(probs,50,dim=-1)  #extract the top 50 (B* 50)
-            most_prob=torch.multinomial(logits_values,1,dim=-1)  # we got the highest indice values shape is [B *1]
+            most_prob=torch.multinomial(logits_values,1)  # we got the highest indice values shape is [B *1]
 
-            idx=torch.gather(most_prob,-1,most_prob) #[B*1]
+            idx=torch.gather(logits_indices,-1,most_prob) #[B*1]
             x=torch.cat((x,idx),1)
 
 #print the values here
 for i in range(num_return_sequence):
-    tokens=x[i:generated_next_tokens].tolist()
+    tokens=x[i,:generated_next_tokens].tolist()
     decode=encoder.decode(tokens)
-    print(decode)
+    print(f"> {decode}")
