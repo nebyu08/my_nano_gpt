@@ -155,7 +155,35 @@ class GPT(nn.Module):
                     sd[k].copy_(sd_hf[k])
 
         return model
+    
+    def forward(self,idx):
+        #the idx is 2D batch by tokens(max block size)
+        B,T=idx.size()
+        assert T<=self.config.block_size,f"the given sequence length {T} must decrease cause the block size is {self.config.block_size}"
         
+        #pass it through the transformers
+
+        #embedding part
+        pos=torch.arange(0,T,dtype=torch.long,device=idx.device)  #shape is T
+        pos_emb=self.transformer.wpe(pos)   #shape is t * n_embd.......this is because this shape is equal for every row of input 
+        tok_emb=self.transformer.wte(idx)   #shape is b * t * n_embd
+        
+        #get the tok and post embd
+        x=tok_emb+pos_emb
+
+        #the casual self attention
+        for block in self.transformer.h:
+            x=block(x)
+        
+        x=self.transformer.ln_f(x)
+
+        logits=self.lm_head(x)  #(B,T,vocab_size)
+        return logits
+
+        
+
+        
+
     
 
 #lets load the GPT2  model
