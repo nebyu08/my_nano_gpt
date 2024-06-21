@@ -46,12 +46,16 @@ class CasualSelfAttention(nn.Module):
         k=k.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
         v=v.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
 
-        attn=(q @ k.transpose(-1,-2))*(1/(math.sqrt(k.size(-1))))   #the shape is B,nh,T,T
-        attn.masked_fill(self.bias[:,:,:T,:T]==0,float("-inf"))
-        attn=F.softmax(attn,dim=-1)
+        # attn=(q @ k.transpose(-1,-2))*(1/(math.sqrt(k.size(-1))))   #the shape is B,nh,T,T
+        # attn.masked_fill(self.bias[:,:,:T,:T]==0,float("-inf"))
+        # attn=F.softmax(attn,dim=-1)
 
         
-        y=attn@v   #B,nh,T,T * B,nh,T,hs  ==> B,nh,T,hs
+        # y=attn@v   #B,nh,T,T * B,nh,T,hs  ==> B,nh,T,hs
+
+        #lets use flash attention here
+        y=F.scaled_dot_product_attention(q,k,v,is_causal=True)
+
         y=y.transpose(1,2).contiguous().view(B,T,C)
         #the output projection becomes
         y=self.c_proj(y)
