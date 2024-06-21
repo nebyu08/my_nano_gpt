@@ -329,7 +329,7 @@ train_dataloader=DataLoaderLite(B=4,T=32)
 
 optimizer=torch.optim.AdamW(model.parameters())
 
-for i in range(3):
+for i in range(100):
     optimizer.zero_grad()
     x,y=train_dataloader.next_batch()
     x,y=x.to(device),y.to(device)
@@ -337,10 +337,9 @@ for i in range(3):
 
     logits,loss=model(x,y)
     loss.backward()
-    # if i%10==0:
-    #     print(f"iteration is: {i} and loss is {loss.item()}")
+    if i%10==0:
+         print(f"iteration is: {i} and loss is {loss.item()}")
 
-    print(f"the loss is:{loss.item()}")
     optimizer.step() 
 
     
