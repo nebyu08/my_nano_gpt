@@ -20,6 +20,7 @@ class CasualSelfAttention(nn.Module):
         assert config.n_embd % config.n_head == 0 ,"problem with the way shape of the n_emb and n_head couldn't be divided"
         self.c_attn=nn.Linear(config.n_embd,3*config.n_embd)
         self.c_proj=nn.Linear(config.n_embd,config.n_embd)
+        self.c_proj.nanogpt_interconnect=1
         
         self.n_embd=config.n_embd
         self.n_head=config.n_head
@@ -70,6 +71,7 @@ class MLP(nn.Module):
         self.c_fc=nn.Linear(config.n_embd,4*config.n_embd)
         self.gelu=nn.GELU(approximate='tanh')
         self.c_proj=nn.Linear(4*config.n_embd,config.n_embd)
+        self.c_proj.nanogpt_interconnect=1
 
     def forward(self,x):
         x=self.c_fc(x)
@@ -105,6 +107,27 @@ class GPT(nn.Module):
         )
         )
         self.lm_head=nn.Linear(config.n_embd,config.vocab_size,bias=False)   
+
+        #weight sharing scheme between the wte and lm_h of the model..
+        self.transformer.wte.weight=self.lm_head.weight #we are making the wte point to the lm head we saved alot of paramters by doing this
+
+        self.apply(self._weight_init)
+    
+    def _weight_init(self,model):
+        std=0.2
+
+        if isinstance(model,nn.Linear):
+            if hasattr(model,"nanogpt_interconnect"):
+                std*=(2*self.config.n_layer)**-0.5
+
+            torch.nn.init.normal_(model.weight,mean=0,std=std)
+            if model.bias is not None:
+                torch.nn.init.zeros_(model.bias)
+
+        if isinstance(model,nn.Embedding):
+            torch.nn.init.normal_(model.weight,mean=0,std=0.02)
+
+
 
     @classmethod
     def from_pretrained(cls,model_type):
@@ -210,7 +233,7 @@ class DataLoaderLite:
         self.tokens=torch.tensor(encoder.encode(data))
 
         print(f"the number of tokens is {len(self.tokens)}")
-        print(f"we expect the following amount of batches:{len(self.tokens)/self.B*self.T}")
+        print(f"we expect the following amount of batches:{len(self.tokens)/(self.B*self.T)}")
 
         self.current_batch=0
     
@@ -228,7 +251,6 @@ class DataLoaderLite:
        return x,y
 
         
-
 #model.to("cuda")
 print("it worked yayayyayay")
 
@@ -298,17 +320,28 @@ encoder=tiktoken.get_encoding('gpt2')
 #lets load the GPT2  model
 model=GPT(GPTConfig())
 
+device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+model.to(device)
+
 train_dataloader=DataLoaderLite(B=4,T=32)
 
 
 optimizer=torch.optim.AdamW(model.parameters())
 
-for i in range(50):
+for i in range(3):
     optimizer.zero_grad()
     x,y=train_dataloader.next_batch()
+    x,y=x.to(device),y.to(device)
+
 
     logits,loss=model(x,y)
     loss.backward()
-    if i%10==0:
-        print(f"iteration is: {i} and loss is {loss.item()}")
+    # if i%10==0:
+    #     print(f"iteration is: {i} and loss is {loss.item()}")
+
+    print(f"the loss is:{loss.item()}")
     optimizer.step() 
+
+    
+    
