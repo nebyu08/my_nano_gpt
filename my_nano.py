@@ -219,7 +219,7 @@ class DataLoaderLite:
     def __init__(self,B,T):
         self.B=B
         self.T=T
-        with open('C:/Users/nebiy/Documents/Dataset/input.txt') as f:
+        with open('/content/input.txt') as f:
             data=f.read()
         
         encoder=tiktoken.get_encoding("gpt2")
