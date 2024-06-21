@@ -9,7 +9,7 @@ from dataclasses import dataclass
 @dataclass
 class GPTConfig:
     block_size:int=1024
-    vocab_size:int =50257
+    vocab_size:int =50257     
     n_layer:int =12
     n_head:int =12
     n_embd:int =768
@@ -189,7 +189,29 @@ class GPT(nn.Module):
                     sd[k].copy_(sd_hf[k])
 
         return model
-    
+
+    def configure_optimizers(self,weight_deacy,learning_rate,device_dtype):
+        params_dict={pn:p for pn,p in self.named_parameters()}  #extracting params in general
+        params_dict={pn:p  for pn,p in params_dict.items() if p.requires_grad()}
+
+        #params that are 2d are decay params and 1d are non decay params
+        decay_params=[p for pn,p in params_dict.items() if p.dim>=2]
+        non_decay_params=[p for pn,p in params_dict.items() if p.dim<2]
+
+        optim_groups=[
+            {"params":decay_params   , "weight_decay":weight_decay}, #this is for the params that have weights to be decayed
+            {"params":non_decay_params  ,"weight_deacy":0.0}  #they dont have weights that needs to be decayed
+        ]
+
+        num_decay_params=sum(p.numel() for p in decay_params)
+        num_non_decay_params=sum(p.numel() for p in non_decay_params) 
+
+        #lets count the number of decay params and there parameters
+        print(f"the number of parameters are {len(decay_params)} and the parameters are {num_decay_params}")
+        print(f"the numbe of parameters are {len(non_decay_params)} amd the parameters are {num_non_decay_params}")
+        
+        optimizer=torch.AdamW(optim_groups,)
+
     def forward(self,idx,targets=None):
         #the idx is 2D batch by tokens(max block size)
         B,T=idx.size()
@@ -218,6 +240,7 @@ class GPT(nn.Module):
             loss=F.cross_entropy(logits.view(-1,logits.shape[-1]),targets.view(-1))
         
         return logits,loss
+
 
 class DataLoaderLite:
     def __init__(self,B,T,data_path):
