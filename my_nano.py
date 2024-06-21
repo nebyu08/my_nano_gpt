@@ -2,6 +2,7 @@ import math
 import tiktoken
 import torch
 import torch.nn as nn
+import timeit
 import torch.nn.functional as F
 from dataclasses import dataclass
 
@@ -324,24 +325,24 @@ device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 model.to(device)
 
-train_dataloader=DataLoaderLite(B=4,T=32)
+train_dataloader=DataLoaderLite(B=16,T=1024)
 
 print(f"the device is: {device}")
 
 optimizer=torch.optim.AdamW(model.parameters())
 
-for i in range(100):
+for i in range(50):
+    t0=timeit.time()  #this is the initial time
     optimizer.zero_grad()
     x,y=train_dataloader.next_batch()
     x,y=x.to(device),y.to(device)
 
-
     logits,loss=model(x,y)
     loss.backward()
-    if i%10==0:
-         print(f"iteration is: {i} and loss is {loss.item()}")
+    t1=timeit.time()
+    optimizer.step()
 
-    optimizer.step() 
-
-    
-    
+    torch.cuda.synchronize()
+    tdif=(t1-t0)*1000
+    print(F"the iteration:{i},the loss: {loss}: time:{tdif} ms")
+     
