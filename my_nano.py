@@ -326,6 +326,7 @@ model.to(device)
 
 train_dataloader=DataLoaderLite(B=4,T=32)
 
+print(f"the device is: {device}")
 
 optimizer=torch.optim.AdamW(model.parameters())
 
