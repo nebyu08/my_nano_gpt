@@ -2,7 +2,7 @@ import math
 import tiktoken
 import torch
 import torch.nn as nn
-import timeit
+import time
 import torch.nn.functional as F
 from dataclasses import dataclass
 
@@ -39,11 +39,7 @@ class CasualSelfAttention(nn.Module):
 
         #lets split it into 3 
         q,k,v=qkv.split(self.n_embd,dim=2)
-        
-        # print("hello from attention")
-        # print(q.shape)
-        # print(k.shape)
-        # print(v.shape)
+
 
         #now lets reshape out querys,keys and values for multi-head purposes
         q=q.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
@@ -51,18 +47,15 @@ class CasualSelfAttention(nn.Module):
         v=v.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
 
         attn=(q @ k.transpose(-1,-2))*(1/(math.sqrt(k.size(-1))))   #the shape is B,nh,T,T
-        attn.masked_fill(self.bias[:,:,T,:T]==0,float("-inf"))
+        attn.masked_fill(self.bias[:,:,:T,:T]==0,float("-inf"))
         attn=F.softmax(attn,dim=-1)
-        
-        #print("the attn shape is :",attn.shape)
-        #print("the value shape is:",v.shape)
+
         
         y=attn@v   #B,nh,T,T * B,nh,T,hs  ==> B,nh,T,hs
         y=y.transpose(1,2).contiguous().view(B,T,C)
-        #print(f"prior y shape is {y.shape}")
         #the output projection becomes
         y=self.c_proj(y)
-        #print(f"output of a attention is, {y.shape}")
+
         return y
 
 
@@ -226,7 +219,7 @@ class DataLoaderLite:
     def __init__(self,B,T):
         self.B=B
         self.T=T
-        with open('/content/input.txt') as f:
+        with open('C:/Users/nebiy/Documents/Dataset/input.txt') as f:
             data=f.read()
         
         encoder=tiktoken.get_encoding("gpt2")
@@ -332,14 +325,14 @@ print(f"the device is: {device}")
 optimizer=torch.optim.AdamW(model.parameters())
 
 for i in range(50):
-    t0=timeit.time()  #this is the initial time
+    t0=time.time()  #this is the initial time
     optimizer.zero_grad()
     x,y=train_dataloader.next_batch()
     x,y=x.to(device),y.to(device)
 
     logits,loss=model(x,y)
     loss.backward()
-    t1=timeit.time()
+    t1=time.time()
     optimizer.step()
 
     torch.cuda.synchronize()
