@@ -216,10 +216,10 @@ class GPT(nn.Module):
         return logits,loss
 
 class DataLoaderLite:
-    def __init__(self,B,T):
+    def __init__(self,B,T,data_path):
         self.B=B
         self.T=T
-        with open('/content/input.txt') as f:
+        with open(data_path) as f:
             data=f.read()
         
         encoder=tiktoken.get_encoding("gpt2")
@@ -312,30 +312,30 @@ encoder=tiktoken.get_encoding('gpt2')
 
 
 #lets load the GPT2  model
-model=GPT(GPTConfig())
+# model=GPT(GPTConfig())
 
-device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-model.to(device)
+# model.to(device)
 
-train_dataloader=DataLoaderLite(B=16,T=1024)
+# train_dataloader=DataLoaderLite(B=16,T=1024)
 
-print(f"the device is: {device}")
+# print(f"the device is: {device}")
 
-optimizer=torch.optim.AdamW(model.parameters())
+# optimizer=torch.optim.AdamW(model.parameters())
 
-for i in range(50):
-    t0=time.time()  #this is the initial time
-    optimizer.zero_grad()
-    x,y=train_dataloader.next_batch()
-    x,y=x.to(device),y.to(device)
+# for i in range(50):
+#     t0=time.time()  #this is the initial time
+#     optimizer.zero_grad()
+#     x,y=train_dataloader.next_batch()
+#     x,y=x.to(device),y.to(device)
 
-    logits,loss=model(x,y)
-    loss.backward()
-    t1=time.time()
-    optimizer.step()
+#     logits,loss=model(x,y)
+#     loss.backward()
+#     t1=time.time()
+#     optimizer.step()
 
-    torch.cuda.synchronize()
-    tdif=(t1-t0)*1000
-    print(F"the iteration:{i},the loss: {loss}: time:{tdif} ms")
+#     torch.cuda.synchronize()
+#     tdif=(t1-t0)*1000
+#     print(F"the iteration:{i},the loss: {loss}: time:{tdif} ms")
      
